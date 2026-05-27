@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkillOpt 项目调查报告</title>
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #4b5563;
+      --accent: #2563eb;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.7;
+    }
+    .container {
+      max-width: 980px;
+      margin: 36px auto;
+      padding: 0 16px 32px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 8px 24px rgba(17, 24, 39, 0.05);
+    }
+    h1,h2,h3 { line-height: 1.3; margin-top: 1.2em; }
+    h1 { margin-top: 0; font-size: 2rem; }
+    h2 {
+      padding-left: 10px;
+      border-left: 4px solid var(--accent);
+      font-size: 1.35rem;
+    }
+    h3 { font-size: 1.05rem; }
+    p, li { color: var(--muted); }
+    ul, ol { padding-left: 1.4rem; }
+    code {
+      background: #eef2ff;
+      color: #1e3a8a;
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: .92em;
+    }
+    .meta {
+      margin-top: -8px;
+      color: #6b7280;
+      font-size: .95rem;
+    }
+    .footer {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--border);
+      color: #6b7280;
+      font-size: .9rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <article class="card">
+      <h1>SkillOpt 项目调查报告</h1>
+      <p class="meta">版本：HTML 交付版（由仓库内 Markdown 调查报告转换与增强排版）</p>
+
+      <h2>1. 项目定位</h2>
+      <p>SkillOpt 是一个“<strong>不改模型权重、只优化技能文档（prompt/skill markdown）</strong>”的训练框架。它把 Agent 技能优化类比为深度学习训练：rollout → reflect → aggregate → select → update → gate，并配套 epoch、learning rate、validation gate 等机制。</p>
+
+      <h2>2. 代码结构总览</h2>
+      <ul>
+        <li><code>skillopt/engine/</code>：训练主循环（核心编排）。</li>
+        <li><code>skillopt/envs/</code>：多 benchmark 适配层（SearchQA、DocVQA、ALFWorld、SpreadsheetBench、OfficeQA、LiveMathematicianBench 等）。</li>
+        <li><code>skillopt/optimizer/</code>：技能更新策略、学习率调度、slow update、meta skill。</li>
+        <li><code>skillopt/gradient/</code>：patch 聚合与反思相关流程。</li>
+        <li><code>skillopt/model/</code>：多后端模型路由与封装（Azure OpenAI、Codex、Claude、Qwen）。</li>
+        <li><code>configs/</code>：分 benchmark 的配置文件。</li>
+        <li><code>scripts/train.py</code> 与 <code>scripts/eval_only.py</code>：训练/评估入口。</li>
+        <li><code>skillopt_webui/</code>：可视化监控界面。</li>
+        <li><code>docs/</code>：MkDocs 文档站点。</li>
+      </ul>
+
+      <h2>3. 运行机制（关键路径）</h2>
+      <ol>
+        <li>CLI 解析并加载 YAML 配置（支持 <code>_base_</code> 继承）。</li>
+        <li>根据 <code>env</code> 注册表选择 benchmark adapter。</li>
+        <li>训练器执行 ReflACT 六阶段循环：Rollout / Reflect / Aggregate / Select / Update / Gate。</li>
+        <li>每 step 与 epoch 持久化历史、技能快照与比较日志。</li>
+      </ol>
+
+      <h2>4. 架构优点</h2>
+      <ul>
+        <li><strong>EnvAdapter 抽象清晰</strong>：环境逻辑与训练循环解耦，扩展新 benchmark 成本较低。</li>
+        <li><strong>配置系统完整</strong>：支持结构化配置、legacy flat key、命令行覆盖，且有 <code>_base_</code> 继承。</li>
+        <li><strong>多模型后端设计合理</strong>：通过 router 统一调用面，便于切换。</li>
+        <li><strong>训练产物可追溯</strong>：history、skill 快照、step 级 artifacts 完整。</li>
+      </ul>
+
+      <h2>5. 主要风险与问题清单</h2>
+      <h3>5.1 文档与代码存在不一致</h3>
+      <ul>
+        <li>README 的“Supported Benchmarks”仅列出 6 个；但 <code>scripts/train.py</code> 中内置注册表还尝试加载 <code>babyvision/mmrb/mathverse/sealqa/swebench</code>。</li>
+        <li><code>docs/index.md</code> 中展示 <code>SWEBench</code> 配置路径 <code>configs/swebench/</code>，但当前仓库未见 <code>configs/swebench/default.yaml</code>。</li>
+      </ul>
+      <p><strong>影响</strong>：用户按文档运行可能遇到“配置不存在”或“依赖不满足”的混淆。</p>
+
+      <h3>5.2 默认模型版本前瞻性较强</h3>
+      <p>默认配置与 README 使用了 <code>gpt-5.5</code>。在部分环境中该 deployment 名未必存在，用户首次运行容易因 deployment 命名不一致失败。</p>
+      <p><strong>建议</strong>：文档明确“示例 deployment 名需替换为你的 Azure deployment 名”。</p>
+
+      <h3>5.3 依赖拆分策略仍可优化</h3>
+      <p>部分 benchmark 的依赖通过 optional extras 处理得较好（如 ALFWorld），但其他 env 的真实依赖可进一步模块化，降低首次安装阻力。</p>
+
+      <h3>5.4 入口脚本参数面很大</h3>
+      <p><code>scripts/train.py</code> 的兼容参数较多，虽增强灵活性，但对新用户理解成本高。建议增加“最小配置模板 + 场景化 presets”。</p>
+
+      <h2>6. 可维护性评估</h2>
+      <ul>
+        <li><strong>扩展性：高</strong>（adapter + config 模式）。</li>
+        <li><strong>可测试性：中</strong>（建议补齐核心单测）。</li>
+        <li><strong>可运维性：中上</strong>（输出结构化、可恢复；但外部依赖多）。</li>
+        <li><strong>文档一致性：中</strong>（存在少量“文档先行/代码未同步”痕迹）。</li>
+      </ul>
+
+      <h2>7. 建议的优先级改进路线</h2>
+      <h3>P0（建议立即）</h3>
+      <ol>
+        <li>对齐文档与代码中的 benchmark 列表与配置路径。</li>
+        <li>在 README/Docs 增加“最小可运行命令（含必要环境变量）”与常见报错排查。</li>
+        <li>明确模型 deployment 名与模型家族名的区别。</li>
+      </ol>
+
+      <h3>P1（短期）</h3>
+      <ol>
+        <li>补充核心模块单测（config 继承/覆盖、adapter 注册、patch 选择策略）。</li>
+        <li>增加 smoke test（mock backend，不触发真实 API）。</li>
+      </ol>
+
+      <h3>P2（中期）</h3>
+      <ol>
+        <li>建立 benchmark capability matrix（依赖、数据格式、是否需要工具执行）。</li>
+        <li>增强 WebUI：展示 step 级 patch 质量与 gate 决策解释。</li>
+      </ol>
+
+      <h2>8. 结论</h2>
+      <p>SkillOpt 架构方向正确，核心设计（训练循环 + adapter 抽象 + 可回溯产物）成熟度较高，适合研究/实验型场景。当前主要短板不在核心算法主干，而在<strong>文档一致性、上手门槛、测试覆盖</strong>。若按 P0/P1 方案补齐，项目可用性会明显提升。</p>
+
+      <div class="footer">生成时间：2026-05-27（UTC）</div>
+    </article>
+  </main>
+</body>
+</html>
